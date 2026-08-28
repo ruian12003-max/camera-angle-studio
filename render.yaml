@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: camera-angle-studio
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    autoDeploy: false

@@ -1,0 +1,11 @@
+{
+  "name": "camera-angle-studio",
+  "version": "0.2.0",
+  "private": true,
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

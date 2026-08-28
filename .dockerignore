@@ -1,0 +1,7 @@
+.env
+.git
+.gitignore
+.tmp-npm-cache
+*.zip
+README.md
+preview.png
