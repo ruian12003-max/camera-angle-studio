@@ -150,10 +150,34 @@
     .composition-setting output { color: var(--red-2); }
     .option-grid { display: grid; gap: 5px; }
     .option-grid.five { grid-template-columns: repeat(5, minmax(0,1fr)); }
+    .option-grid.eight { grid-template-columns: repeat(4, minmax(0,1fr)); }
     .option-grid.three { grid-template-columns: repeat(3, minmax(0,1fr)); }
     .target-row { display: grid; grid-template-columns: 1fr auto; gap: 7px; }
     .focus-pick.active { color: #9ef7ff; border-color: #2da6b0; background: rgba(36,188,201,.13); }
     .composition-note { margin: 8px 1px 0; color: #777781; font-size: 10px; line-height: 1.5; }
+    .scene-lock-card { padding: 11px; border: 1px solid rgba(127,240,176,.28); border-radius: 10px; background: rgba(127,240,176,.055); }
+    .scene-lock-card strong { display: block; color: #9af4bd; font-size: 11px; }
+    .scene-lock-card span { display: block; margin-top: 4px; color: #858590; font-size: 9px; line-height: 1.45; overflow-wrap: anywhere; }
+    .scene-map-box { margin-top: 9px; padding: 9px; border: 1px solid var(--line); border-radius: 10px; background: #0e0e12; }
+    .scene-map-preview { position: relative; min-height: 145px; display: grid; place-items: center; overflow: hidden; border: 1px dashed #34343c; border-radius: 8px; background: #09090c; }
+    .scene-map-preview img { display: block; width: 100%; aspect-ratio: 1/1; object-fit: contain; }
+    .scene-map-preview img[hidden] { display: none; }
+    .scene-map-placeholder { color: #686873; font-size: 10px; text-align: center; line-height: 1.55; padding: 18px; }
+    .scene-map-badge { position: absolute; left: 7px; top: 7px; padding: 5px 7px; border-radius: 6px; background: rgba(8,8,10,.78); color: #ffb28d; font-size: 9px; backdrop-filter: blur(6px); }
+    .scene-map-badge.approved { color: #8df1b3; }
+    .scene-map-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 7px; }
+    .scene-map-actions .btn { padding-inline: 7px; font-size: 10px; }
+    .scene-corrections-label { display: block; margin: 9px 1px 6px; color: #9696a0; font-size: 9px; }
+    textarea.scene-corrections { min-height: 70px; padding: 9px; font-size: 10px; line-height: 1.55; }
+    .reference-summary { margin: 9px 1px; color: #a8a8b1; font-size: 10px; line-height: 1.55; }
+    .reference-summary.warn { color: #ffb28d; }
+    .keyframe-strip { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 6px; margin-top: 9px; }
+    .keyframe-card { position: relative; min-width: 0; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: #0c0c0f; }
+    .keyframe-card.canonical { border-color: rgba(127,240,176,.42); }
+    .keyframe-card img { display: block; width: 100%; aspect-ratio: 16/10; object-fit: cover; background: #08080a; }
+    .keyframe-card span { display: block; padding: 5px 4px; color: #bdbdc5; font-size: 9px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .keyframe-remove { position: absolute; top: 3px; right: 3px; width: 19px; height: 19px; padding: 0; border: 1px solid rgba(255,255,255,.24); border-radius: 50%; background: rgba(8,8,10,.78); color: #fff; cursor: pointer; font-size: 11px; }
+    .keyframe-actions { display: grid; grid-template-columns: 1fr; gap: 6px; margin-top: 9px; }
 
     textarea {
       width: 100%; min-height: 190px; resize: vertical; padding: 13px; color: #d8d8de;
@@ -197,6 +221,7 @@
     .result-body { padding: 11px; }
     .result-meta { display: flex; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 10px; margin-bottom: 9px; }
     .result-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+    .result-actions .delete-result { grid-column: 1 / -1; color: #ff8b84; border-color: rgba(255,59,48,.38); background: rgba(255,59,48,.07); }
     .empty-results { padding: 35px 18px; text-align: center; color: #72727c; font-size: 12px; }
     .empty-results strong { display: block; color: #a9a9b1; font-size: 13px; margin-bottom: 6px; }
 
@@ -272,7 +297,7 @@
       <div class="toolbar-group">
         <button class="btn primary" id="uploadBtn">
           <svg viewBox="0 0 24 24" fill="none"><path d="M12 16V4m0 0L7 9m5-5 5 5M5 14v5h14v-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          上传场景图
+          上传并锁定原图
         </button>
         <input type="file" id="fileInput" accept="image/*" hidden />
         <button class="btn" id="swapBtn">反转箭头</button>
@@ -289,6 +314,7 @@
           <span class="chip" id="horizontalChip">左右 · 右侧向左</span>
           <span class="chip" id="verticalChip">上下 · 平视</span>
           <span class="chip" id="depthChip">纵深 · 指向画面深处</span>
+          <span class="chip" id="sceneLockChip">场景锁定 · 原图 0°</span>
         </div>
 
         <div class="canvas-wrap" id="dropZone">
@@ -313,9 +339,9 @@
           </div>
           <div class="control">
             <label><span>纵深方向（前后）</span><output id="depthOut">朝画面深处</output></label>
-            <div class="control-help">鼠标左键/右键拖拽会自动切换，触屏可用下方按钮。</div>
+            <div class="control-help">鼠标左键/右键拖拽会自动切换；右键只反转前后 Z 轴，原图左右 X 坐标不变。</div>
             <div class="preset-row depth-row" id="depthPresets">
-              <button class="preset active" data-depth="into">左键 · 深入场景</button><button class="preset" data-depth="out">右键 · 前方反打</button>
+              <button class="preset active" data-depth="into">左键 · 深入场景</button><button class="preset" data-depth="out">右键 · 仅 Z 轴反打</button>
             </div>
           </div>
         </div>
@@ -327,14 +353,20 @@
           <div class="metric-list">
             <div class="metric"><span>机位区域</span><strong id="positionMetric">画面右侧</strong></div>
             <div class="metric"><span>三维拍摄方向</span><strong id="directionMetric">向左下 · 深入场景</strong></div>
-            <div class="metric"><span>俯仰关系</span><strong id="pitchMetric">轻微俯拍</strong></div>
+            <div class="metric"><span>横向机位锁定</span><strong id="lateralMetric">正中轴机位</strong></div>
+            <div class="metric"><span>摄像机高度</span><strong id="heightMetric">眼平附近</strong></div>
+            <div class="metric"><span>镜头瞄准</span><strong id="aimMetric">人物胸部</strong></div>
+            <div class="metric"><span>俯仰关系</span><strong id="pitchMetric">接近平视</strong></div>
+            <div class="metric"><span>视角类型</span><strong id="perspectiveMetric">平视视角</strong></div>
             <div class="metric depth-mode"><span>Z 轴纵深模式</span><strong id="depthMetric">左键 · 深入场景</strong></div>
             <div class="metric"><span>人物观察方位</span><strong id="orbitMetric">正面 0°</strong></div>
             <div class="metric"><span>指定景别</span><strong id="shotMetric">中景</strong></div>
             <div class="metric"><span>对焦目标</span><strong id="focusMetric">人物主体</strong></div>
-            <div class="metric"><span>箭头角度</span><strong id="angleMetric">168°</strong></div>
+            <div class="metric"><span>人物视线</span><strong id="gazeMetric">严格保持原图</strong></div>
+            <div class="metric"><span>平面拍摄方向</span><strong id="angleMetric">168°</strong></div>
           </div>
-          <p class="metric-note">相同箭头的 XY 方向与长度不变时，俯仰角和景别相同；左右键只切换前后 Z 轴，这是两个镜头的核心差别。</p>
+          <p class="metric-note" id="perspectivePrediction">预期画面：眼平附近的摄像机平视主体。</p>
+          <p class="metric-note">箭头尾部是摄像机位置，尖端是镜头瞄准点；尾部高低决定机位高度，尾部与尖端的高度差决定俯仰。左右键只切换前后 Z 轴。</p>
         </section>
 
         <section class="side-section composition-section">
@@ -342,8 +374,8 @@
           <div class="composition-controls">
             <div class="composition-setting">
               <label><span>围绕人物观察方位</span><output id="orbitOut">正面 0°</output></label>
-              <div class="option-grid five" id="orbitPresets">
-                <button class="preset active" data-orbit="0">正面</button><button class="preset" data-orbit="45">前侧</button><button class="preset" data-orbit="90">侧面</button><button class="preset" data-orbit="135">后侧</button><button class="preset" data-orbit="180">背面</button>
+              <div class="option-grid eight" id="orbitPresets">
+                <button class="preset active" data-orbit="0">正面 0°</button><button class="preset" data-orbit="45">右前 45°</button><button class="preset" data-orbit="90">右侧 90°</button><button class="preset" data-orbit="135">右后 135°</button><button class="preset" data-orbit="180">背面 180°</button><button class="preset" data-orbit="225">左后 225°</button><button class="preset" data-orbit="270">左侧 270°</button><button class="preset" data-orbit="315">左前 315°</button>
               </div>
             </div>
             <div class="composition-setting">
@@ -359,8 +391,34 @@
                 <button class="btn focus-pick" id="focusPick" type="button">画面点选</button>
               </div>
             </div>
+            <div class="composition-setting">
+              <label><span>人物视线（与对焦分离）</span><output id="gazeOut">严格保持原图</output></label>
+              <select id="gazeMode"><option value="preserve" selected>严格保持原图视线</option><option value="camera">主动看向新镜头</option></select>
+            </div>
           </div>
           <p class="composition-note" id="compositionNote">焦段控制透视，景别控制画面裁切；两者是独立参数。</p>
+        </section>
+
+        <section class="side-section">
+          <div class="section-title"><h2>360°场景锁定</h2><span id="referenceCount">1 张参考</span></div>
+          <div class="scene-lock-card"><strong>原图永久作为 0° 世界坐标基准</strong><span id="canonicalName">内置示例场景</span></div>
+          <div class="scene-map-box">
+            <div class="scene-map-preview">
+              <div class="scene-map-placeholder" id="sceneMapPlaceholder">尚未生成俯视空间结构图<br>生成一次后需要人工确认</div>
+              <img id="sceneMapImage" alt="俯视空间结构图" hidden />
+              <span class="scene-map-badge" id="sceneMapBadge">未建立</span>
+            </div>
+            <div class="scene-map-actions">
+              <button class="btn" id="generateSceneMap" type="button">生成俯视结构图</button>
+              <button class="btn" id="approveSceneMap" type="button" disabled>确认并锁定</button>
+            </div>
+            <label class="scene-corrections-label" for="sceneCorrections">空间关系修正说明（会写入所有目标镜头）</label>
+            <textarea class="scene-corrections" id="sceneCorrections" spellcheck="false" placeholder="例如：人物坐在长凳中央；桌子在人物正后方；四根柱子的间距不可改变。"></textarea>
+          </div>
+          <p class="reference-summary" id="referencePlan">当前使用原图 0°；每次最多跨越 45°。</p>
+          <div class="keyframe-strip" id="keyframeStrip"></div>
+          <div class="keyframe-actions"><button class="btn" id="clearKeyframes" type="button">清除辅助机位</button></div>
+          <p class="composition-note">生成结果需点击“加入机位参考”才能成为后续角度的空间依据。原图不会被生成结果覆盖。</p>
         </section>
 
         <section class="side-section">
@@ -415,11 +473,11 @@
 
     <section class="results-panel" id="resultsPanel">
       <div class="results-head"><h2>生成结果</h2><span id="resultCount">尚未生成</span></div>
-      <div class="empty-results" id="emptyResults"><strong>新机位会出现在这里</strong>生成时发送的是无标注原图，红色箭头只用于计算镜位意图。</div>
+      <div class="empty-results" id="emptyResults"><strong>新机位会出现在这里</strong>生成时发送无标注原图及已确认的邻近机位参考；红色箭头只用于计算镜位意图。</div>
       <div class="results-grid" id="resultsGrid" hidden></div>
     </section>
 
-    <footer><span>原型版本 0.6 · GPT Image 2 本地代理模式</span><span>红箭头 = 镜位方向　青色准星 = 对焦目标　焦段 ≠ 景别</span></footer>
+    <footer><span>原型版本 0.9.7 · 原图绝对左右坐标</span><span>左/右按观众视角解释　反打只翻转 Z 轴、不交换 X 轴</span></footer>
   </div>
 
   <div class="toast" id="toast" role="status"></div>
@@ -432,23 +490,26 @@
     const dropZone = $('dropZone');
     const apertureValues = [1.4, 2, 2.8, 4, 5.6, 8, 11, 16];
     const orbitOptions = {
-      0: { label: '正面 0°', prompt: '从人物正面观察，保留可见的正脸与正面服装结构' },
-      45: { label: '前侧 45°', prompt: '绕人物旋转到前侧约 45°，形成自然的三分之四正面视角' },
-      90: { label: '侧面 90°', prompt: '绕人物旋转到纯侧面约 90°，清晰呈现面部侧轮廓与身体侧面' },
-      135: { label: '后侧 135°', prompt: '绕人物旋转到后侧约 135°，以前后交界的三分之四背面观察，正脸只允许极少侧缘' },
-      180: { label: '背面 180°', prompt: '摄影机实际绕到人物正后方约 180°，明确拍摄后脑、后背与背面服装，正脸不可见，不得仍输出原图正面' }
+      0: { label: '正面 0°', prompt: '保持在原图正面半空间观察，保留可见的正脸与正面服装结构；横向细分位置完全服从箭头尾部在原始画面中的绝对 X 坐标，不得按人物自身左右重新解释' },
+      45: { label: '右前侧 45°', prompt: '摄影机从原始 0° 机位向人物右前侧环绕约 45°，形成右侧三分之四正面视角' },
+      90: { label: '右侧面 90°', prompt: '摄影机环绕到人物右侧约 90°，呈现右侧轮廓与身体右侧面' },
+      135: { label: '右后侧 135°', prompt: '摄影机环绕到人物右后侧约 135°，形成右侧三分之四背面视角，正脸只允许极少侧缘' },
+      180: { label: '背面 180°', prompt: '摄影机实际环绕到人物正后方约 180°，明确拍摄后脑、后背与背面服装，正脸不可见，不得仍输出原图正面' },
+      225: { label: '左后侧 225°', prompt: '摄影机越过 180° 环绕到人物左后侧约 225°，形成左侧三分之四背面视角' },
+      270: { label: '左侧面 270°', prompt: '摄影机环绕到人物左侧约 270°，呈现左侧轮廓与身体左侧面' },
+      315: { label: '左前侧 315°', prompt: '摄影机环绕到人物左前侧约 315°，形成左侧三分之四正面视角' }
     };
     const shotOptions = {
-      wide: { label: '大全景', prompt: '人物只占画面较小比例，完整展示大范围环境与空间关系' },
-      full: { label: '全景', prompt: '人物从头到脚完整入画，并保留足够环境信息' },
-      medium: { label: '中景', prompt: '人物约腰部以上入画，兼顾动作和环境关系' },
-      close: { label: '近景', prompt: '人物胸部或肩部以上入画，弱化环境并突出表情' },
-      closeup: { label: '脸部特写', prompt: '脸部占据画面主要面积，肩部位于画面边缘，眼睛与面部细节清晰，不得退回中景或全景' },
-      extreme: { label: '大特写', prompt: '面部局部几乎填满画面，重点呈现眼睛、鼻梁和皮肤细节，只保留极少背景' }
+      wide: { label: '大全景', prompt: '人物保持原图姿态与动作，只占画面较小比例，完整展示大范围环境与空间关系', frameLock: '人物约占画面高度 10%–30%，允许展示大范围建筑和地面，但人物身份与姿态仍须清晰可辨' },
+      full: { label: '全景', prompt: '完整呈现人物原始姿态下的身体轮廓与足够环境信息；不得为了露出全身而改变姿态、站立或重新摆姿', frameLock: '人物从头顶到脚部或坐姿衣摆完整进入画面，约占画面高度 55%–85%；不得裁掉头部或脚部，也不得退成远景' },
+      medium: { label: '中景', prompt: '保持人物原图姿态与动作，以腰部附近以上为主要构图范围，兼顾动作和少量环境关系', frameLock: '人物从头顶到腰部或坐姿大腿上缘占画面高度约 65%–85%；脚部、完整下半身和大面积地面必须位于画面之外，地面最多占画面 15%。禁止全身、全景、大全景和建筑展示镜头' },
+      close: { label: '近景', prompt: '保持人物原图姿态、表情与动作，以胸部或肩部以上为主要构图范围，弱化环境并突出表情', frameLock: '人物头部、肩部和胸部占画面高度约 70%–90%；腰部、腿部、脚部和大面积环境必须裁出画面。禁止中景、全身和环境展示镜头' },
+      closeup: { label: '脸部特写', prompt: '脸部占据画面主要面积，肩部位于画面边缘，眼睛与面部细节清晰，不得退回中景或全景', frameLock: '人物脸部占画面高度约 55%–80%，只保留少量头发、颈部和肩缘；胸部以下不得出现，背景仅作模糊色块。禁止近景、中景、全身和环境展示镜头' },
+      extreme: { label: '大特写', prompt: '面部局部几乎填满画面，重点呈现眼睛、鼻梁和皮肤细节，只保留极少背景', frameLock: '眼睛、鼻梁或面部局部占据绝大部分画面，可裁切头发、下巴和耳缘；不得出现完整头肩、身体或可辨识的大面积环境' }
     };
     const focusOptions = {
       person: { label: '人物主体', prompt: '焦点锁定主要人物主体' },
-      face: { label: '脸部 / 眼睛', prompt: '精确对焦人物眼睛与脸部，眼睛必须锐利清晰' },
+      face: { label: '脸部 / 眼睛', prompt: '光学焦平面精确落在人物眼睛与脸部，使眼睛锐利清晰；这只控制成像清晰度，绝不代表人物需要看向摄影机' },
       upper: { label: '上半身', prompt: '焦点锁定人物上半身与手部动作' },
       fullbody: { label: '人物全身', prompt: '焦点锁定人物完整身体轮廓' },
       object: { label: '指定物体', prompt: '焦点锁定画面标记位置的指定物体' },
@@ -464,12 +525,19 @@
       orbitDeg: 0,
       shotScale: 'medium',
       focusTarget: 'person',
+      gazeMode: 'preserve',
       focusPoint: { x: .50, y: .46 },
       placingFocus: false,
       active: 'target',
       dragging: null,
       image: new Image(),
       imageName: '内置示例场景',
+      canonicalImage: null,
+      canonicalName: '内置示例场景',
+      sceneMap: null,
+      sceneMapApproved: false,
+      sceneMapGenerating: false,
+      keyframes: new Map(),
       drawRect: { x: 0, y: 0, w: 1200, h: 750 },
       apiConfigured: false,
       generating: false,
@@ -502,7 +570,10 @@
       </svg>`;
 
     const demoUrl = URL.createObjectURL(new Blob([demoSvg], { type: 'image/svg+xml' }));
-    state.image.onload = () => { draw(); syncFocalFromArrow(); updateAll(); };
+    state.image.onload = () => {
+      if (!state.canonicalImage) state.canonicalImage = state.image;
+      draw(); syncFocalFromArrow(); renderKeyframes(); updateAll();
+    };
     state.image.src = demoUrl;
 
     function imageRect() {
@@ -662,11 +733,11 @@
       drawFocusMarker();
 
       ctx.save();
-      const depthLabel = state.depthDirection === 'into' ? '左键 · 深入场景' : '右键 · 前方反打';
+      const depthLabel = state.depthDirection === 'into' ? '左键 · 深入场景' : '右键 · 仅 Z 轴反打';
       ctx.fillStyle = 'rgba(8,8,10,.62)'; roundRect(r.x + 15, r.y + 15, 300, 38, 9);
       ctx.fillStyle = '#fff'; ctx.font = '600 17px Inter, sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
       ctx.fillText(`${state.focal}mm  ·  f/${apertureValues[state.apertureIndex]}  ·  ${depthLabel}`, r.x + 31, r.y + 34);
-      const framingLabel = `${orbitOptions[state.orbitDeg].label}  ·  ${shotOptions[state.shotScale].label}`;
+      const framingLabel = `${analysis().orbit.label}  ·  ${shotOptions[state.shotScale].label}`;
       const framingWidth = ctx.measureText(framingLabel).width + 30;
       ctx.fillStyle = 'rgba(8,8,10,.62)'; roundRect(r.x + r.w - framingWidth - 15, r.y + 15, framingWidth, 38, 9);
       ctx.fillStyle = '#fff'; ctx.fillText(framingLabel, r.x + r.w - framingWidth, r.y + 34);
@@ -685,62 +756,278 @@
       else if (dx < 0) direction = dy > .12 ? '向左下方' : dy < -.12 ? '向左上方' : '由右向左';
       else direction = dy > .12 ? '向右下方' : dy < -.12 ? '向右上方' : '由左向右';
 
-      const pitchDegree = Math.round(Math.atan2(Math.abs(dy), Math.max(.001, Math.abs(dx))) * 180 / Math.PI);
-      let pitch;
-      if (dy > .03) pitch = `俯拍约 ${pitchDegree}°`;
-      else if (dy < -.03) pitch = `仰拍约 ${pitchDegree}°`;
-      else pitch = '接近平视';
+      // 箭头是摄影机的三维语义标注，不是普通二维角度尺。
+      // 尾部低于尖端（camera.y > target.y）代表低机位向上拍；反之代表高机位向下拍。
+      const verticalDelta = cam.y - target.y;
+      const verticalStrength = Math.abs(verticalDelta);
+      const pitchDegree = verticalStrength <= .04
+        ? 0
+        : Math.round(Math.max(5, Math.min(35, 5 + ((verticalStrength - .04) / .56) * 30)));
+
+      let cameraHeight, perspectiveType, pitch, perspectiveEvidence, perspectiveNegative;
+      if (verticalDelta >= .38) {
+        cameraHeight = '接近地面 / 膝盖以下';
+        perspectiveType = '虫视角';
+        pitch = `强烈仰拍约 ${pitchDegree}°`;
+        perspectiveEvidence = '地平线必须低于人物膝部，明显看到人物下巴、衣袖或服装下沿及附近物体底面，人物由下向上延伸，柱子和建筑竖线向画面上方产生真实透视汇聚';
+        perspectiveNegative = '禁止眼平机位、平拍效果、普通正面照和仅把人物放大而不改变透视';
+      } else if (verticalDelta >= .22) {
+        cameraHeight = '膝部低机位';
+        perspectiveType = '明显低机位';
+        pitch = `仰拍约 ${pitchDegree}°`;
+        perspectiveEvidence = '地平线位于人物膝部附近或更低，可见下巴与服装下沿，人物上半身产生明确由下向上的透视关系';
+        perspectiveNegative = '禁止拍成眼平、平拍或普通正面构图';
+      } else if (verticalDelta >= .10) {
+        cameraHeight = '腰部以下低机位';
+        perspectiveType = '轻度低机位';
+        pitch = `轻微仰拍约 ${pitchDegree}°`;
+        perspectiveEvidence = '地平线低于人物胸部，能够感受到摄影机位置低于瞄准点，人物具有轻微由下向上的透视';
+        perspectiveNegative = '禁止完全平拍或把仰拍效果消除';
+      } else if (verticalDelta <= -.38) {
+        cameraHeight = '头顶上方高机位';
+        perspectiveType = '鸟瞰 / 强俯视';
+        pitch = `强烈俯拍约 ${pitchDegree}°`;
+        perspectiveEvidence = '明显看到人物头顶、肩部上表面和地面布局，地面占比增加，竖直物体向画面下方形成真实俯视透视';
+        perspectiveNegative = '禁止眼平机位、平拍效果或仅缩小人物';
+      } else if (verticalDelta <= -.22) {
+        cameraHeight = '眼睛以上高机位';
+        perspectiveType = '明显高机位';
+        pitch = `俯拍约 ${pitchDegree}°`;
+        perspectiveEvidence = '可见人物头顶与肩部上表面，地面面积增加，画面具有明确由上向下的透视关系';
+        perspectiveNegative = '禁止拍成眼平或普通平拍构图';
+      } else if (verticalDelta <= -.10) {
+        cameraHeight = '胸部以上高机位';
+        perspectiveType = '轻度高机位';
+        pitch = `轻微俯拍约 ${pitchDegree}°`;
+        perspectiveEvidence = '摄影机明确高于瞄准点，适度看到人物头部和肩部上表面，保留轻微俯视透视';
+        perspectiveNegative = '禁止完全平拍或把俯拍效果消除';
+      } else {
+        cameraHeight = '与瞄准点近似同高';
+        perspectiveType = '平视视角';
+        pitch = '接近平视 0°';
+        perspectiveEvidence = '地平线接近瞄准点高度，垂直透视保持自然，不制造仰拍或俯拍';
+        perspectiveNegative = '禁止擅自改为明显仰拍或俯拍';
+      }
+
+      let aimTarget;
+      if (target.y < .20) aimTarget = '人物头顶 / 头部';
+      else if (target.y < .38) aimTarget = '人物面部 / 胸部';
+      else if (target.y < .58) aimTarget = '人物躯干';
+      else if (target.y < .76) aimTarget = '人物膝部 / 下半身';
+      else aimTarget = '地面 / 脚部';
+
+      const perspectivePrediction = perspectiveType === '虫视角'
+        ? `预期画面：摄像机在人物膝盖以下并向上瞄准${aimTarget}，必须出现明显虫视角，不能是平拍。`
+        : `预期画面：${cameraHeight}的摄像机${pitch}瞄准${aimTarget}，呈现${perspectiveType}。`;
 
       const orbit = orbitOptions[state.orbitDeg];
       let shot = shotOptions[state.shotScale];
-      if (state.orbitDeg >= 135 && state.shotScale === 'closeup') shot = { label: '头部背面特写', prompt: '后脑、耳部侧缘与肩部占据画面主要面积，正脸和眼睛不可见，不得退回中景或全景' };
-      if (state.orbitDeg >= 135 && state.shotScale === 'extreme') shot = { label: '后脑大特写', prompt: '后脑发丝、耳部侧缘或背面头饰几乎填满画面，只保留极少背景，正脸不可见' };
+      if (isRearOrbit(state.orbitDeg) && state.shotScale === 'closeup') shot = { label: '头部背面特写', prompt: '后脑、耳部侧缘与肩部占据画面主要面积，正脸和眼睛不可见，不得退回中景或全景', frameLock: shotOptions.closeup.frameLock };
+      if (isRearOrbit(state.orbitDeg) && state.shotScale === 'extreme') shot = { label: '后脑大特写', prompt: '后脑发丝、耳部侧缘或背面头饰几乎填满画面，只保留极少背景，正脸不可见', frameLock: shotOptions.extreme.frameLock };
+
+      // 俯仰证据必须服从景别。中景和特写不能为了展示地面、膝盖或建筑而退成全景。
+      const croppedShot = ['medium', 'close', 'closeup', 'extreme'].includes(state.shotScale);
+      let cropAwarePerspective = '';
+      if (croppedShot && perspectiveType === '虫视角') {
+        perspectiveEvidence = '摄影机物理位置仍在人物膝盖以下并向上拍摄，通过下巴、面部、胸腹、衣袖下沿和身体由下向上的透视体现虫视角；地面、膝盖、脚部和完整建筑可以且应当被指定景别裁出画面';
+        cropAwarePerspective = '不得为了证明虫视角而展示地面、脚部、人物全身、完整柱子或大面积建筑；只能在当前裁切范围内表现低机位透视';
+      } else if (croppedShot && ['明显低机位', '轻度低机位'].includes(perspectiveType)) {
+        perspectiveEvidence = '保持摄影机低于瞄准点，通过下巴、胸部和衣袖的轻微向上透视表现低机位；无需展示地面、膝盖或脚部';
+        cropAwarePerspective = '不得为了展示低机位而扩大景别或增加大面积环境';
+      } else if (croppedShot && ['鸟瞰 / 强俯视', '明显高机位', '轻度高机位'].includes(perspectiveType)) {
+        perspectiveEvidence = '保持摄影机高于瞄准点，通过头顶、肩部上表面和脸部向下透视表现高机位；无需展示完整地面布局';
+        cropAwarePerspective = '不得为了展示俯视关系而扩大景别或退成环境镜头';
+      }
       const focus = focusOptions[state.focusTarget];
       const focusHorizontal = state.focusPoint.x < .36 ? '左侧' : state.focusPoint.x > .64 ? '右侧' : '中央';
       const focusVertical = state.focusPoint.y < .36 ? '上部' : state.focusPoint.y > .64 ? '下部' : '中部';
       const focusPosition = `画面${focusHorizontal}${focusVertical}`;
       const horizontal = Math.abs(dx) < .04 ? '接近垂直轴' : dx < 0 ? '朝画面左侧' : '朝画面右侧';
+      const lateralDelta = cam.x - target.x;
+      let lateralCamera, lateralConstraint, lateralSide;
+      if (Math.abs(lateralDelta) <= .08) {
+        lateralSide = 'center';
+        lateralCamera = '正中轴机位';
+        lateralConstraint = state.orbitDeg === 0
+          ? '摄影机必须位于人物身体正中矢状面，镜头光轴从画面下方正中央穿过人物胸骨、鼻梁与脸部中心；人物主体保持居中，左右环境透视与留白尽量对称，主消失点位于人物中轴附近。禁止摄影机随机偏到人物左下、右下、左前或右前，禁止三分之四侧角和荷兰倾斜构图'
+          : '摄影机沿当前环绕角度的中心径向轴放置，不增加额外左偏或右偏；保持目标主体位于该机位的主光轴附近';
+      } else if (lateralDelta < 0) {
+        lateralSide = 'screen-left';
+        lateralCamera = '原图画面左侧机位（观众左）';
+        lateralConstraint = '箭头尾部位于原始参考图的画面左侧，即观众左手边、图像 X 负方向。摄影机必须锁定在原图画面左侧前景，从左下或左侧位置朝瞄准点拍摄；不得把“画面左侧”解释成人物身体自身的左侧，不得镜像、水平翻转或跳到原图画面右侧。新画面的透视必须证明摄影机来自原图左侧';
+      } else {
+        lateralSide = 'screen-right';
+        lateralCamera = '原图画面右侧机位（观众右）';
+        lateralConstraint = '箭头尾部位于原始参考图的画面右侧，即观众右手边、图像 X 正方向。摄影机必须锁定在原图画面右侧前景，从右下或右侧位置朝瞄准点拍摄；不得把“画面右侧”解释成人物身体自身的右侧，不得镜像、水平翻转或跳到原图画面左侧。新画面的透视必须证明摄影机来自原图右侧';
+      }
+      const orbitDisplay = state.orbitDeg === 0
+        ? (lateralSide === 'screen-left' ? '正面范围 · 原图画面左偏' : lateralSide === 'screen-right' ? '正面范围 · 原图画面右偏' : '正中正面 0°')
+        : orbit.label;
+      const gazeLabel = state.gazeMode === 'camera' ? '主动看向新镜头' : '严格保持原图';
+      const gazeInstruction = state.gazeMode === 'camera'
+        ? '允许人物把视线明确投向新摄影机，但除了实现眼神接触所需的最小眼球转动外，不得改变原始表情、姿态和动作'
+        : '人物头部朝向、眼球旋转、瞳孔位置和视线落点必须相对于场景世界坐标严格保持原图状态。摄影机移动时人物不能跟随摄影机转头或转动眼睛；若原图没有注视摄影机，新图也禁止看向新摄影机。光学对焦到脸部或眼睛只表示该区域清晰，绝不等于人物与镜头进行眼神接触';
       const aperture = apertureValues[state.apertureIndex];
       const depthOfField = aperture <= 2 ? '极浅景深，背景明显虚化' : aperture <= 4 ? '浅景深，主体分离' : aperture <= 8 ? '中等景深' : '深景深，环境清晰';
       const depthDirection = state.depthDirection === 'into' ? '朝画面深处推进' : '朝画面前方反打';
-      return { degree, position, direction, pitch, pitchDegree, shot, orbit, focus, focusPosition, horizontal, aperture, depthOfField, depthDirection };
+      return { degree, position, direction, pitch, pitchDegree, cameraHeight, aimTarget, perspectiveType, perspectiveEvidence, perspectiveNegative, perspectivePrediction, cropAwarePerspective, lateralSide, lateralCamera, lateralConstraint, orbitDisplay, gazeLabel, gazeInstruction, shot, orbit: { ...orbit, label: orbitDisplay }, focus, focusPosition, horizontal, aperture, depthOfField, depthDirection };
+    }
+
+    function isRearOrbit(angle) {
+      return angle >= 135 && angle <= 225;
+    }
+
+    function circularDistance(a, b) {
+      return Math.abs(((a - b + 540) % 360) - 180);
+    }
+
+    function signedOrbitDelta(from, to) {
+      let delta = ((to - from + 540) % 360) - 180;
+      if (delta === -180) delta = 180;
+      return delta;
+    }
+
+    function selectedKeyframeEntries(targetAngle = state.orbitDeg) {
+      return [...state.keyframes.entries()]
+        .sort((a, b) => circularDistance(a[0], targetAngle) - circularDistance(b[0], targetAngle))
+        .slice(0, state.sceneMapApproved ? 2 : 3);
+    }
+
+    function generationGate(targetAngle = state.orbitDeg) {
+      if (state.sceneMapApproved) return { allowed: true, nearest: 0, gap: circularDistance(0, targetAngle), sceneMap: true };
+      const approved = [0, ...state.keyframes.keys()];
+      const nearest = approved.sort((a, b) => circularDistance(a, targetAngle) - circularDistance(b, targetAngle))[0];
+      const gap = circularDistance(nearest, targetAngle);
+      if (gap <= 45) return { allowed: true, nearest, gap };
+      const next = (nearest + Math.sign(signedOrbitDelta(nearest, targetAngle)) * 45 + 360) % 360;
+      return { allowed: false, nearest, gap, next };
+    }
+
+    function renderSceneMap() {
+      const image = $('sceneMapImage');
+      const placeholder = $('sceneMapPlaceholder');
+      const badge = $('sceneMapBadge');
+      const generate = $('generateSceneMap');
+      const approve = $('approveSceneMap');
+      image.onerror = () => {
+        image.hidden = true;
+        placeholder.hidden = false;
+        badge.textContent = '结构图加载失败';
+        badge.classList.remove('approved');
+      };
+      if (state.sceneMap) {
+        image.src = state.sceneMap; image.hidden = false; placeholder.hidden = true;
+        badge.textContent = state.sceneMapApproved ? '空间图已锁定' : '待人工确认';
+        badge.classList.toggle('approved', state.sceneMapApproved);
+        approve.disabled = false; approve.textContent = state.sceneMapApproved ? '取消空间图锁定' : '确认并锁定';
+        generate.textContent = state.sceneMapGenerating ? '生成中…' : '重新生成结构图';
+      } else {
+        image.removeAttribute('src'); image.hidden = true; placeholder.hidden = false;
+        badge.textContent = state.sceneMapGenerating ? '生成中…' : '未建立'; badge.classList.remove('approved');
+        approve.disabled = true; approve.textContent = '确认并锁定';
+        generate.textContent = state.sceneMapGenerating ? '生成中…' : '生成俯视结构图';
+      }
+      generate.disabled = state.sceneMapGenerating;
+    }
+
+    function renderKeyframes() {
+      const strip = $('keyframeStrip');
+      if (!strip) return;
+      strip.replaceChildren();
+      const canonical = document.createElement('div'); canonical.className = 'keyframe-card canonical';
+      const canonicalImage = document.createElement('img'); canonicalImage.src = state.canonicalImage?.src || state.image.src; canonicalImage.alt = '原始 0° 主参考图';
+      const canonicalLabel = document.createElement('span'); canonicalLabel.textContent = '原图 · 0°';
+      canonical.append(canonicalImage, canonicalLabel); strip.append(canonical);
+      [...state.keyframes.entries()].sort((a,b) => a[0] - b[0]).forEach(([angle, frame]) => {
+        const card = document.createElement('div'); card.className = 'keyframe-card';
+        const image = document.createElement('img'); image.src = frame.image; image.alt = `${angle}° 已确认机位参考`;
+        const label = document.createElement('span'); label.textContent = `${angle}° · 已确认`;
+        const remove = document.createElement('button'); remove.className = 'keyframe-remove'; remove.type = 'button'; remove.textContent = '×'; remove.title = `移除 ${angle}° 参考`;
+        remove.addEventListener('click', () => { state.keyframes.delete(angle); renderKeyframes(); updateAll(); toast(`已移除 ${angle}° 机位参考`); });
+        card.append(image, label, remove); strip.append(card);
+      });
+      $('referenceCount').textContent = `${1 + (state.sceneMapApproved ? 1 : 0) + selectedKeyframeEntries().length} 张当前引用`;
+      $('canonicalName').textContent = state.canonicalName;
+      renderSceneMap();
+    }
+
+    function updateReferencePlan() {
+      const gate = generationGate();
+      const refs = selectedKeyframeEntries().map(([angle]) => `${angle}°`);
+      const plan = $('referencePlan');
+      if (state.sceneMapApproved) {
+        plan.className = 'reference-summary';
+        plan.textContent = `俯视空间图已确认，可直接生成 ${state.orbitDeg}°；使用原图 0° + 俯视空间图${refs.length ? ` + 你保留的邻近辅助 ${refs.join('、')}` : '；当前没有启用辅助机位'}。`;
+      } else if (!gate.allowed) {
+        plan.className = 'reference-summary warn';
+        plan.textContent = `目标 ${state.orbitDeg}° 距最近已确认机位 ${gate.nearest}° 为 ${gate.gap}°；请先生成并加入 ${gate.next}° 关键帧。`;
+      } else {
+        plan.className = 'reference-summary';
+        plan.textContent = `目标 ${state.orbitDeg}° 可生成；将使用原图 0°${refs.length ? ` + 邻近参考 ${refs.join('、')}` : ''}。`;
+      }
+      $('sceneLockChip').textContent = state.sceneMapApproved
+        ? `场景锁定 · 空间图 + ${selectedKeyframeEntries().length} 张人工辅助`
+        : `场景锁定 · ${1 + state.keyframes.size} 张参考`;
     }
 
     function buildPrompt(a) {
       const depthInstruction = state.depthDirection === 'into'
-        ? '这是深入场景镜头：摄影机从当前画面前景一侧沿箭头轴线看向场景内部与背景，透视线向箭头端的消失点收束，近处物体较大、远处物体递减；禁止拍成朝原摄影机方向的反打。'
-        : '这是前方反打镜头：摄影机越过原主体或原视线轴，沿箭头所示的纵深反方向朝原摄影机一侧拍摄，展现原画面前方或原摄影机方向的空间，建立与深入镜头相反的前后景关系；禁止继续沿原视线向场景深处拍摄。';
-      const rearView = state.orbitDeg >= 135;
+        ? '这是深入场景镜头：只沿 Z 轴朝场景内部观察，摄影机的原图 X 坐标和画面左/右侧归属保持不变。它只决定前后观察方向，不改变左右位置、焦段、视场角和指定景别。禁止镜像、左右交换、扩大视野或退成全景；禁止拍成朝原摄影机方向的反打。'
+        : '这是前方反打镜头：只把前后 Z 轴观察方向反转为朝原摄影机一侧拍摄；摄影机的原图 X 坐标必须保持不变。反打绝不代表跨越横向轴线：原图画面左侧机位反打后仍在原图左侧，原图画面右侧机位反打后仍在原图右侧。禁止镜像、左右交换、水平翻转、扩大视野或退成全景。';
+      const rearView = isRearOrbit(state.orbitDeg);
       const focusInstruction = rearView && state.focusTarget === 'face'
         ? '焦点锁定人物后脑、耳部侧缘与头部轮廓，正脸不可见'
         : a.focus.prompt;
-      return `以当前参考图为场景、人物和造型一致性基准，重新设计一个${a.shot.label}。\n\n【摄影机】机位放在${a.position}，镜头在画面平面上${a.horizontal}、${a.pitch}，纵深模式为${a.depthDirection}，箭头方向角约 ${a.degree}°。${depthInstruction}\n\n【人物方位】${a.orbit.label}：${a.orbit.prompt}。这是摄影机真实绕人物移动后的新视角，不是把原图人物水平翻转。\n\n【景别与对焦】${a.shot.prompt}。${focusInstruction}，参考图中的对焦标记位于${a.focusPosition}。使用 ${state.focal}mm 镜头控制透视压缩，使用 f/${a.aperture} 光圈形成${a.depthOfField}；焦段不得覆盖或擅自改变指定景别。\n\n保留原图中的人物身份、服装、身体比例、空间结构、时间、光线方向与综合色调。对于参考图未展示的背面内容，按现有服装材质、结构和颜色做可信延续，不新增标志、文字或无依据的复杂装饰。透视、遮挡和焦点变化符合真实摄影逻辑，电影感写实摄影，高细节，自然光影。`;
+      const selectedFrames = selectedKeyframeEntries();
+      let inputIndex = 2;
+      const roles = [];
+      if (state.sceneMapApproved) { roles.push(`输入图 ${inputIndex} 是已人工确认的正交俯视空间结构图，只负责三维布局、物体编号、前后左右关系与接触锚点，不负责写实外观`); inputIndex += 1; }
+      selectedFrames.forEach(([angle]) => { roles.push(`输入图 ${inputIndex} 是已确认的 ${angle}° 机位参考`); inputIndex += 1; });
+      const referenceInstruction = `输入图 1 永远是原始 0° 主参考图，是人物身份、姿态、材质、光线与场景外观的最高优先级依据${roles.length ? `；${roles.join('；')}` : ''}。所有输入图描述的是同一场景、同一人物、同一瞬间，必须先对齐并统一其空间信息。`;
+      const corrections = $('sceneCorrections').value.trim();
+      const correctionInstruction = corrections ? `【人工空间修正】以下内容由用户确认，优先级高于AI推测：${corrections}\n\n` : '';
+      const lensConstraint = state.focal >= 70
+        ? `${state.focal}mm 长焦窄视场，背景透视压缩，只保留指定景别允许的少量环境；禁止超广角、鱼眼、夸张近大远小、建筑大全景和大面积地面前景`
+        : state.focal >= 50
+          ? `${state.focal}mm 标准偏长焦视场，保持自然到轻度压缩的透视；禁止擅自改成超广角或鱼眼效果`
+          : state.focal <= 28
+            ? `${state.focal}mm 广角视场，但仍必须服从指定景别和人物画面占比；禁止以广角为由退成更远景别`
+            : `${state.focal}mm 自然视场，焦段只控制透视，不得覆盖指定景别`;
+      return `【参考图职责】${referenceInstruction}\n\n${correctionInstruction}【任务原则】以原始 0° 主参考图建立唯一固定的三维世界。仅移动摄影机，从绝对环绕角度 ${state.orbitDeg}° 重新拍摄一个${a.shot.label}；不是重新设计人物、动作、家具、建筑或场景。所有角度均相对于原始 0°，不得相对于上一张图重复累计旋转。\n\n【世界坐标锁定】严格保持人物数量、身份、面部、发型、服装、表情、视线、身体姿态、关节位置、手势和正在进行的动作。锁定每个人物、桌椅、家具、道具、柱子、门窗、建筑构件和地面标志在场景世界坐标中的位置、朝向、尺度、数量、相互距离及前后左右关系。任何支撑或接触人物的物体都是刚性空间锚点，人物与座椅、地面、桌面、道具的接触点必须保持完全一致。禁止站起、坐下、转身、行走、换姿势、重新摆拍、搬动家具、改变柱距或增删物体。\n\n【投影变化规则】摄影机移动后，允许物体在输出画面中的二维位置、透视大小、可见面积、遮挡次序和画面裁切按照真实视差自然变化；这些只是新摄影机投影的结果。不得把二维位置变化错误实现为物体在三维场景中的真实移动。新画面必须像对同一套固定布景进行重新摄影。\n\n【景别硬锁定｜最高构图优先级】目标景别是${a.shot.label}。${a.shot.frameLock}。${a.shot.prompt}。景别和人物画面占比的优先级高于展示地面、建筑、俯仰证据和纵深空间；任何其他要求都不得把画面扩大成不同景别。\n\n【摄影机三维位置】箭头尾部代表摄影机，尖端代表瞄准点。摄影机位于${a.position}、${a.cameraHeight}，镜头瞄准${a.aimTarget}；俯仰为${a.pitch}，视角类型为${a.perspectiveType}。箭头的平面拍摄方向约 ${a.degree}°、${a.horizontal}，这只是平面方向，不得把它当成俯仰角。纵深模式为${a.depthDirection}。${depthInstruction}\n\n【横向机位硬锁定】当前横向机位为${a.lateralCamera}。${a.lateralConstraint}。不得把低机位仰拍自行改造成随机的左下角或右下角摄影机。\n\n【俯仰透视硬约束】输出画面必须在${a.shot.label}的裁切范围内表现以下摄影证据：${a.perspectiveEvidence}。${a.cropAwarePerspective}。${a.perspectiveNegative}。不能只在文字上声称${a.pitch}，也不能为了证明俯仰而扩大景别。\n\n【人物方位】${a.orbit.label}：${a.orbit.prompt}。这是摄影机围绕保持静止的人物和场景真实移动后的新观察角度，不是人物转身，也不是把原图人物水平翻转。\n\n【人物视线硬锁定】${a.gazeInstruction}。头部朝向、人物观察方位、眼球视线和光学对焦是四个不同参数，不得互相替代。\n\n【焦段硬锁定】${lensConstraint}。焦段不得被俯仰、纵深方向或环境展示要求覆盖。\n\n【光学对焦】${focusInstruction}，参考图中的对焦标记位于${a.focusPosition}。光学对焦只决定清晰平面，不得改变人物头部、眼球或视线。使用 f/${a.aperture} 光圈形成${a.depthOfField}。通过移动摄影机距离和严格裁切实现指定景别，不得通过改变人物姿态、扩大视场或移动场景物体实现景别。\n\n【不可见区域补全】只补全摄影机移动后必然新暴露且位于当前${a.shot.label}画框内的区域，并依据原图、已确认俯视空间图及邻近机位的材质、结构、颜色和连续几何做最小可信延续；不得借补全改变任何已知事实或扩大构图。保持时间、光线方向与综合色调一致，不新增标志、文字或无依据的复杂装饰。透视、视差、遮挡和焦点变化符合真实摄影逻辑，电影感写实摄影，高细节，自然光影。`;
     }
 
     function updateAll(regeneratePrompt = true) {
       const a = analysis();
       $('focalOut').value = `${state.focal}mm`;
       $('apertureOut').value = `f/${a.aperture}`;
-      $('depthOut').value = state.depthDirection === 'into' ? '左键 · 深入' : '右键 · 反打';
+      $('depthOut').value = state.depthDirection === 'into' ? '左键 · 深入' : '右键 · 仅 Z 轴反打';
       $('lensChip').textContent = `镜头 ${state.focal}mm`;
       $('apertureChip').textContent = `光圈 f/${a.aperture}`;
-      $('horizontalChip').textContent = `左右 · ${a.horizontal}`;
+      $('horizontalChip').textContent = `平面瞄准 · ${a.horizontal}`;
       $('verticalChip').textContent = `上下 · ${a.pitch}`;
-      $('depthChip').textContent = `纵深 · ${state.depthDirection === 'into' ? '左键深入' : '右键反打'}`;
+      $('depthChip').textContent = `纵深 · ${state.depthDirection === 'into' ? '左键深入' : '右键仅反转 Z 轴'}`;
       $('positionMetric').textContent = a.position;
       $('directionMetric').textContent = `${a.direction} · ${state.depthDirection === 'into' ? '深入场景' : '前方反打'}`;
+      $('lateralMetric').textContent = a.lateralCamera;
+      $('heightMetric').textContent = a.cameraHeight;
+      $('aimMetric').textContent = a.aimTarget;
       $('pitchMetric').textContent = a.pitch;
-      $('depthMetric').textContent = state.depthDirection === 'into' ? '左键 · 深入场景' : '右键 · 前方反打';
+      $('perspectiveMetric').textContent = a.perspectiveType;
+      $('depthMetric').textContent = state.depthDirection === 'into' ? '左键 · 深入场景' : '右键 · 仅 Z 轴前方反打';
       $('orbitMetric').textContent = a.orbit.label;
       $('shotMetric').textContent = a.shot.label;
       $('focusMetric').textContent = a.focus.label;
+      $('gazeMetric').textContent = a.gazeLabel;
       $('angleMetric').textContent = `${a.degree}°`;
+      $('perspectivePrediction').textContent = a.perspectivePrediction;
       $('orbitOut').value = a.orbit.label;
       $('shotOut').value = a.shot.label;
       $('focusOut').value = a.focus.label;
       $('focusTarget').value = state.focusTarget;
-      $('compositionNote').textContent = state.orbitDeg >= 135
-        ? '背面在单张参考图中不可见，模型会按现有服装推断；需要精确一致时应再提供背面参考图。'
+      $('gazeOut').value = a.gazeLabel;
+      $('gazeMode').value = state.gazeMode;
+      $('compositionNote').textContent = isRearOrbit(state.orbitDeg)
+        ? (state.sceneMapApproved ? '俯视空间图已锁定，可直接生成后侧角度；不可见外观仍会依据原图做最小推断。' : state.keyframes.size ? '后侧不可见区域将结合原图与已确认邻近机位补全；世界坐标与接触关系保持锁定。' : '后侧在单张原图中不可见；请先锁定俯视空间图，或按 45° 间隔加入机位参考。')
         : '焦段控制透视，景别控制画面裁切；两者是独立参数。';
       if (regeneratePrompt) $('prompt').value = buildPrompt(a);
       $('charCount').textContent = `${$('prompt').value.length} 字`;
@@ -751,6 +1038,7 @@
       document.querySelectorAll('#shotPresets .preset').forEach(b => b.classList.toggle('active', b.dataset.shot === state.shotScale));
       $('focusPick').classList.toggle('active', state.placingFocus);
       $('focusPick').textContent = state.placingFocus ? '请点画面' : '画面点选';
+      updateReferencePlan();
       draw();
     }
 
@@ -843,6 +1131,7 @@
       updateAll(); toast(`景别：${shotOptions[state.shotScale].label}`);
     });
     $('focusTarget').addEventListener('change', event => { state.focusTarget = event.target.value; updateAll(); });
+    $('gazeMode').addEventListener('change', event => { state.gazeMode = event.target.value; updateAll(); toast(state.gazeMode === 'preserve' ? '人物视线将严格保持原图' : '人物将主动看向新镜头'); });
     $('focusPick').addEventListener('click', () => {
       state.placingFocus = !state.placingFocus; updateAll(false);
       if (state.placingFocus) { canvas.focus(); toast('请在画面上点击需要对焦的位置'); }
@@ -866,7 +1155,14 @@
       const reader = new FileReader();
       reader.onload = (e) => {
         const img = new Image();
-        img.onload = () => { state.image = img; state.imageName = file.name; updateAll(); toast(`已载入 ${file.name}`); };
+        img.onload = () => {
+          state.image = img; state.imageName = file.name;
+          state.canonicalImage = img; state.canonicalName = file.name;
+          state.sceneMap = null; state.sceneMapApproved = false; state.sceneMapGenerating = false;
+          state.keyframes.clear(); state.results = [];
+          renderResults(); renderKeyframes(); updateAll(); updateResolutionNote();
+          toast(`已锁定原图 0°：${file.name}`);
+        };
         img.onerror = () => toast('图片读取失败');
         img.src = e.target.result;
       };
@@ -878,6 +1174,9 @@
     ['dragenter','dragover'].forEach(type => document.addEventListener(type, e => { if (!e.dataTransfer?.types?.includes('Files')) return; e.preventDefault(); app.classList.add('dragging'); }));
     document.addEventListener('dragleave', e => { if (!e.relatedTarget) app.classList.remove('dragging'); });
     document.addEventListener('drop', e => { if (!e.dataTransfer?.files?.length) return; e.preventDefault(); app.classList.remove('dragging'); handleFile(e.dataTransfer.files[0]); });
+    $('clearKeyframes').addEventListener('click', () => {
+      state.keyframes.clear(); renderKeyframes(); updateAll(); toast('已清除辅助机位，原图 0° 保留');
+    });
 
     const sizeMap = {
       '1k': { '1:1': '1024x1024', '16:9': '1360x768', '9:16': '768x1360', '4:3': '1152x864', '3:2': '1248x832' },
@@ -919,7 +1218,8 @@
         state.apiConfigured = Boolean(data.configured);
         if (!$('apiUrl').value.trim() && data.defaultApiUrl) $('apiUrl').value = data.defaultApiUrl;
         indicator.className = 'connection ready';
-        indicator.querySelector('span').textContent = state.apiConfigured ? '本地服务已连接 · 可使用服务端凭据或覆盖为第三方凭据' : '本地服务已连接 · 请填写 API URL 和 API Key';
+        const backendVersion = data.serverVersion || '旧版后台';
+        indicator.querySelector('span').textContent = state.apiConfigured ? `本地服务已连接 · ${backendVersion} · 可使用服务端凭据或覆盖为第三方凭据` : `本地服务已连接 · ${backendVersion} · 请填写 API URL 和 API Key`;
         $('keyField').hidden = false;
       } catch {
         state.apiConfigured = false;
@@ -970,14 +1270,81 @@
       }
     });
 
-    function cleanSourceDataUrl() {
-      const sourceW = state.image.naturalWidth || 1400, sourceH = state.image.naturalHeight || 875;
+    function cleanImageDataUrl(image) {
+      const sourceW = image?.naturalWidth || 1400, sourceH = image?.naturalHeight || 875;
       const scale = Math.min(1, 2048 / Math.max(sourceW, sourceH));
       const clean = document.createElement('canvas');
       clean.width = Math.max(16, Math.round(sourceW * scale)); clean.height = Math.max(16, Math.round(sourceH * scale));
-      const cleanCtx = clean.getContext('2d'); cleanCtx.drawImage(state.image, 0, 0, clean.width, clean.height);
+      const cleanCtx = clean.getContext('2d'); cleanCtx.drawImage(image, 0, 0, clean.width, clean.height);
       return clean.toDataURL('image/png');
     }
+
+    function generationReferences() {
+      const references = [{ image: cleanImageDataUrl(state.canonicalImage || state.image), angle: 0, role: 'canonical' }];
+      if (state.sceneMapApproved && state.sceneMap) references.push({ image: state.sceneMap, angle: null, role: 'scene-map' });
+      selectedKeyframeEntries().forEach(([angle, frame]) => references.push({ image: frame.image, angle, role: 'keyframe' }));
+      return references;
+    }
+
+    async function generateSceneMap() {
+      if (state.sceneMapGenerating || state.generating) return;
+      const key = $('apiKey').value.trim();
+      const apiUrl = $('apiUrl').value.trim();
+      if (!apiUrl) { toast('请先填写 API URL'); $('apiUrl').focus(); return; }
+      if (!state.apiConfigured && !key) { toast('请先输入 API Key'); $('apiKey').focus(); return; }
+
+      const corrections = $('sceneCorrections').value.trim();
+      const mapPrompt = `请把输入图 1 转换为一张“可人工确认的正交俯视空间结构图”，用于锁定同一场景的三维布局，不要生成另一张普通写实照片。以输入图为唯一事实来源，保留并标出人物、人物姿态与接触点、桌椅、柱子、门窗、建筑边界、地面标志和所有可见道具；使用简单清晰的俯视平面示意，标注物体名称、前后左右关系和大致相对距离。不可见区域只能根据输入图做最小可信推断，不得新增物体、改变数量、搬动家具或把坐着的人画成站立；如果某区域无法确定，用淡黄色虚线标出“待确认”，不要擅自补全为确定事实。这个结构图只负责空间关系，不负责写实风格、人物脸部细节或光影。${corrections ? `\n\n用户额外确认：${corrections}` : ''}`;
+      state.sceneMapGenerating = true;
+      renderSceneMap();
+      const indicator = $('connection');
+      indicator.className = 'connection ready';
+      indicator.querySelector('span').textContent = '正在生成俯视空间结构图（仅调用 1 次生图）…';
+      try {
+        const headers = { 'Content-Type': 'application/json' };
+        if (key) headers['X-Provider-Key'] = key;
+        const response = await fetch(`${apiBase()}/api/generate`, {
+          method: 'POST', headers,
+          body: JSON.stringify({
+            images: [{ image: cleanImageDataUrl(state.canonicalImage || state.image), angle: 0, role: 'canonical' }],
+            prompt: mapPrompt,
+            size: '1024x1024',
+            quality: 'low',
+            apiUrl
+          })
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || `俯视结构图生成失败（${response.status}）`);
+        if (!data.image) throw new Error('第三方接口没有返回俯视结构图');
+        state.sceneMap = data.image;
+        state.sceneMapApproved = false;
+        renderSceneMap(); updateAll();
+        indicator.className = 'connection ready';
+        indicator.querySelector('span').textContent = '俯视结构图已生成，请检查后确认锁定';
+        toast('俯视结构图已生成，请检查后点击“确认并锁定”');
+      } catch (error) {
+        indicator.className = 'connection error';
+        indicator.querySelector('span').textContent = error.message;
+        toast(error.message);
+      } finally {
+        state.sceneMapGenerating = false;
+        renderSceneMap();
+      }
+    }
+
+    $('generateSceneMap').addEventListener('click', generateSceneMap);
+    $('approveSceneMap').addEventListener('click', () => {
+      if (!state.sceneMap) return;
+      state.sceneMapApproved = !state.sceneMapApproved;
+      renderSceneMap(); updateAll();
+      toast(state.sceneMapApproved ? '空间结构图已锁定，后续镜位可直接生成' : '已取消空间结构图锁定');
+    });
+    $('sceneCorrections').addEventListener('input', () => {
+      const prompt = buildPrompt(analysis());
+      $('prompt').value = prompt;
+      $('charCount').textContent = `${prompt.length} 字`;
+      updateReferencePlan();
+    });
 
     function setGenerating(value) {
       state.generating = value; $('generateImage').disabled = value;
@@ -994,39 +1361,58 @@
         const img = document.createElement('img'); img.src = result.image; img.alt = `GPT Image 2 生成结果 ${index + 1}`;
         const body = document.createElement('div'); body.className = 'result-body';
         const meta = document.createElement('div'); meta.className = 'result-meta';
-        const left = document.createElement('span'); left.textContent = `${result.size} · ${result.qualityLabel}`;
+        const left = document.createElement('span'); left.textContent = `${result.orbitDeg}° · ${result.size} · ${result.qualityLabel}`;
         const right = document.createElement('span'); right.textContent = result.time;
         meta.append(left, right);
         const actions = document.createElement('div'); actions.className = 'result-actions';
-        const use = document.createElement('button'); use.className = 'btn'; use.textContent = '设为参考图';
+        const activeFrame = state.keyframes.get(result.orbitDeg)?.image === result.image;
+        const use = document.createElement('button'); use.className = 'btn'; use.textContent = result.orbitDeg === 0 ? '原图已锁定' : activeFrame ? `移除 ${result.orbitDeg}° 辅助` : `加入 ${result.orbitDeg}° 辅助`;
+        use.disabled = result.orbitDeg === 0;
         use.addEventListener('click', () => {
-          const next = new Image(); next.onload = () => { state.image = next; state.imageName = `GPT Image 2 结果 ${index + 1}`; updateAll(); updateResolutionNote(); window.scrollTo({top: 260, behavior:'smooth'}); toast('已设为新的参考图'); }; next.src = result.image;
+          if (state.keyframes.get(result.orbitDeg)?.image === result.image) {
+            state.keyframes.delete(result.orbitDeg);
+            toast(`已移除 ${result.orbitDeg}° 辅助机位`);
+          } else {
+            state.keyframes.set(result.orbitDeg, { image: result.image, angle: result.orbitDeg, addedAt: Date.now() });
+            toast(`已加入 ${result.orbitDeg}° 辅助机位`);
+          }
+          renderResults(); renderKeyframes(); updateAll();
         });
         const download = document.createElement('button'); download.className = 'btn primary'; download.textContent = '下载图片';
         download.addEventListener('click', async () => { const blob = await (await fetch(result.image)).blob(); downloadBlob(blob, `GPT-Image-2_镜位_${Date.now()}.jpg`); });
-        actions.append(use, download); body.append(meta, actions); card.append(img, body); grid.append(card);
+        const removeResult = document.createElement('button'); removeResult.className = 'btn delete-result'; removeResult.textContent = '删除错误结果';
+        removeResult.addEventListener('click', () => {
+          const wasActive = state.keyframes.get(result.orbitDeg)?.image === result.image;
+          if (wasActive) state.keyframes.delete(result.orbitDeg);
+          state.results.splice(index, 1);
+          renderResults(); renderKeyframes(); updateAll();
+          toast(wasActive ? '错误结果及其辅助引用已删除' : '错误结果已删除');
+        });
+        actions.append(use, download, removeResult); body.append(meta, actions); card.append(img, body); grid.append(card);
       });
     }
 
     $('generateImage').addEventListener('click', async () => {
       if (state.generating) return;
+      const gate = generationGate();
+      if (!gate.allowed) { toast(`跨度过大：请先生成并加入 ${gate.next}° 关键帧`); return; }
       const key = $('apiKey').value.trim();
       const apiUrl = $('apiUrl').value.trim();
       if (!apiUrl) { toast('请先填写 API URL'); $('apiUrl').focus(); return; }
       if (!state.apiConfigured && !key) { toast('请先输入 OpenAI API Key'); $('apiKey').focus(); return; }
-      const options = generationOptions(); const started = Date.now(); setGenerating(true);
-      const indicator = $('connection'); indicator.className = 'connection ready'; indicator.querySelector('span').textContent = '正在上传参考图并生成，复杂画面可能需要约 2 分钟';
+      const options = generationOptions(); const started = Date.now(); const references = generationReferences(); setGenerating(true);
+      const indicator = $('connection'); indicator.className = 'connection ready'; indicator.querySelector('span').textContent = `正在上传 ${references.length} 张参考图并生成，复杂画面可能需要约 2 分钟`;
       try {
         const headers = { 'Content-Type': 'application/json' }; if (key) headers['X-Provider-Key'] = key;
         const response = await fetch(`${apiBase()}/api/generate`, {
           method: 'POST', headers,
-          body: JSON.stringify({ image: cleanSourceDataUrl(), prompt: $('prompt').value, size: options.size, quality: options.quality, apiUrl })
+          body: JSON.stringify({ images: references, prompt: $('prompt').value, size: options.size, quality: options.quality, apiUrl })
         });
         const data = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(data.error || `生成失败（${response.status}）`);
-        state.results.unshift({ image: data.image, size: options.size, qualityLabel: $('quality').selectedOptions[0].text, time: `${Math.round((Date.now()-started)/1000)} 秒`, requestId: data.requestId });
+        state.results.unshift({ image: data.image, orbitDeg: state.orbitDeg, size: options.size, qualityLabel: $('quality').selectedOptions[0].text, time: `${Math.round((Date.now()-started)/1000)} 秒`, requestId: data.requestId, referenceCount: references.length });
         state.results = state.results.slice(0, 6); renderResults();
-        indicator.className = 'connection ready'; indicator.querySelector('span').textContent = `生成完成${data.requestId ? ` · ${data.requestId}` : ''}`;
+        indicator.className = 'connection ready'; indicator.querySelector('span').textContent = `生成完成 · 使用 ${data.referenceCount || references.length} 张参考${data.requestId ? ` · ${data.requestId}` : ''}`;
         $('resultsPanel').scrollIntoView({ behavior: 'smooth', block: 'start' }); toast('新机位画面生成完成');
       } catch (error) {
         indicator.className = 'connection error'; indicator.querySelector('span').textContent = error.message;
@@ -1063,12 +1449,13 @@
     $('exportJson').addEventListener('click', () => {
       const a = analysis();
       const payload = {
-        version: 1,
-        sourceImage: state.imageName,
+        version: 2,
+        sourceImage: state.canonicalName,
+        sceneLock: { canonicalAngle: 0, approvedKeyframes: [...state.keyframes.keys()].sort((a,b) => a-b) },
         camera: { ...state.camera }, target: { ...state.target },
         lens: { focalLengthMm: state.focal, aperture: a.aperture },
         depthDirection: state.depthDirection,
-        composition: { orbitDeg: state.orbitDeg, shotScale: state.shotScale, focusTarget: state.focusTarget, focusPoint: { ...state.focusPoint } },
+        composition: { orbitDeg: state.orbitDeg, shotScale: state.shotScale, focusTarget: state.focusTarget, focusPoint: { ...state.focusPoint }, gazeMode: state.gazeMode, lateralCamera: a.lateralCamera },
         derived: a, prompt: $('prompt').value,
         exportedAt: new Date().toISOString()
       };

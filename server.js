@@ -60,6 +60,25 @@ function extractImage(dataUrl) {
   return { type: match[1], bytes };
 }
 
+function extractReferenceImages(body) {
+  const rawImages = Array.isArray(body.images) && body.images.length ? body.images : [body.image];
+  if (!rawImages[0]) throw new Error('缺少原始参考图');
+  if (rawImages.length > 4) throw new Error('一次最多使用 4 张参考图');
+  const references = rawImages.map((item, index) => {
+    const payload = typeof item === 'string' ? item : item?.image;
+    const source = extractImage(payload);
+    return {
+      ...source,
+      angle: Number.isFinite(Number(item?.angle)) ? Number(item.angle) : null,
+      role: ['canonical', 'scene-map', 'keyframe'].includes(item?.role) ? item.role : 'keyframe',
+      index
+    };
+  });
+  const totalBytes = references.reduce((sum, source) => sum + source.bytes.length, 0);
+  if (totalBytes > 60 * 1024 * 1024) throw new Error('参考图总大小必须小于 60MB');
+  return references;
+}
+
 function resolveApiUrl(input) {
   const raw = String(input || process.env.OPENAI_API_URL || OFFICIAL_API_URL).trim();
   let url;
@@ -89,6 +108,8 @@ function resolveModelsUrl(input) {
 
 function networkErrorMessage(error) {
   const code = error?.cause?.code || error?.code;
+  const message = String(error?.message || '');
+  if (code === 'EACCES' || code === 'EPERM' || /\bEACCES\b|\bEPERM\b/i.test(message)) return '本机安全策略禁止 Node.js 访问外网（EACCES）。请在 Windows 防火墙或安全软件中允许 node.exe 出站连接，并检查 VPN/代理设置';
   if (code === 'ENOTFOUND' || code === 'EAI_AGAIN') return 'DNS 解析失败：请检查 API URL 的域名是否填写正确或仍然有效';
   if (code === 'ECONNREFUSED') return '端口连接被拒绝：服务器未开放该端口或服务未启动';
   if (code === 'ETIMEDOUT' || code === 'UND_ERR_CONNECT_TIMEOUT') return '连接超时：域名可解析，但服务器端口没有及时响应';
@@ -181,6 +202,22 @@ async function downloadReturnedImage(imageUrl) {
   return `data:${type};base64,${bytes.toString('base64')}`;
 }
 
+function buildImageEditForm(sources, prompt, size, quality, imageField) {
+  const form = new FormData();
+  form.append('model', 'gpt-image-2');
+  sources.forEach((source, index) => {
+    const extension = source.type === 'image/png' ? 'png' : source.type === 'image/webp' ? 'webp' : 'jpg';
+    const angle = source.angle === null ? index : source.angle;
+    form.append(imageField, new Blob([source.bytes], { type: source.type }), `${source.role}-${angle}.${extension}`);
+  });
+  form.append('prompt', prompt);
+  form.append('size', size);
+  form.append('quality', quality);
+  form.append('output_format', 'jpeg');
+  form.append('output_compression', '92');
+  return form;
+}
+
 async function generate(req, res) {
   try {
     const body = await readJson(req);
@@ -192,33 +229,41 @@ async function generate(req, res) {
     if (!prompt || prompt.length > 32000) return json(req, res, 400, { error: '提示词为空或过长' });
     if (!allowedSizes.has(body.size)) return json(req, res, 400, { error: '不支持的输出尺寸' });
     if (!['low','medium','high'].includes(body.quality)) return json(req, res, 400, { error: '不支持的画质参数' });
-    const source = extractImage(body.image);
+    const sources = extractReferenceImages(body);
 
-    const form = new FormData();
-    form.append('model', 'gpt-image-2');
-    form.append('image[]', new Blob([source.bytes], { type: source.type }), source.type === 'image/png' ? 'reference.png' : 'reference.jpg');
-    form.append('prompt', prompt);
-    form.append('size', body.size);
-    form.append('quality', body.quality);
-    form.append('output_format', 'jpeg');
-    form.append('output_compression', '92');
-
-    const upstream = await fetch(apiUrl, {
-      method: 'POST', headers: { Authorization: `Bearer ${apiKey}` }, body: form,
-      signal: AbortSignal.timeout(180000)
-    });
-    const requestId = upstream.headers.get('x-request-id');
-    const raw = await upstream.text();
-    let data; try { data = JSON.parse(raw); } catch { data = {}; }
+    // OpenAI 兼容接口通常使用 image[]；部分第三方单图接口只接受 image。
+    // 只有在单图请求收到参数类错误时才回退，避免重复消耗正常请求。
+    const imageFields = sources.length === 1 ? ['image[]', 'image'] : ['image[]'];
+    let upstream;
+    let data = {};
+    let requestId = null;
+    for (let index = 0; index < imageFields.length; index += 1) {
+      const form = buildImageEditForm(sources, prompt, body.size, body.quality, imageFields[index]);
+      try {
+        upstream = await fetch(apiUrl, {
+          method: 'POST', headers: { Authorization: `Bearer ${apiKey}` }, body: form,
+          signal: AbortSignal.timeout(180000)
+        });
+      } catch (error) {
+        const host = new URL(apiUrl).host;
+        return json(req, res, 502, { error: `无法访问第三方生图接口 ${host}：${networkErrorMessage(error)}。请在能访问外网的环境启动本地服务后重试` });
+      }
+      requestId = upstream.headers.get('x-request-id');
+      const raw = await upstream.text();
+      try { data = JSON.parse(raw); } catch { data = {}; }
+      const canTrySingular = !upstream.ok && index === 0 && imageFields.length > 1 && [400, 404, 405, 415, 422].includes(upstream.status);
+      if (upstream.ok || !canTrySingular) break;
+    }
     if (!upstream.ok) {
-      const message = data?.error?.message || `OpenAI 请求失败（${upstream.status}）`;
+      let message = data?.error?.message || `OpenAI 请求失败（${upstream.status}）`;
+      if (sources.length > 1 && [400, 404, 405, 415, 422].includes(upstream.status)) message += '；该第三方接口可能不支持多个 image[] 参考图，请向服务商确认 GPT Image 2 多图编辑兼容性';
       return json(req, res, upstream.status, { error: message, code: data?.error?.code, requestId });
     }
     const encoded = data?.data?.[0]?.b64_json;
     const returnedUrl = data?.data?.[0]?.url;
     if (!encoded && !returnedUrl) return json(req, res, 502, { error: '第三方接口未返回 b64_json 或图片 URL', requestId });
     const image = encoded ? `data:image/jpeg;base64,${encoded}` : await downloadReturnedImage(returnedUrl);
-    return json(req, res, 200, { image, requestId, usage: data.usage || null, providerHost: new URL(apiUrl).host });
+    return json(req, res, 200, { image, requestId, usage: data.usage || null, providerHost: new URL(apiUrl).host, referenceCount: sources.length });
   } catch (error) {
     const timedOut = error?.name === 'TimeoutError' || error?.name === 'AbortError';
     return json(req, res, timedOut ? 504 : 500, { error: timedOut ? '生成超时，请降低分辨率后重试' : networkErrorMessage(error) });
@@ -228,7 +273,7 @@ async function generate(req, res) {
 const server = http.createServer(async (req, res) => {
   if (req.method === 'OPTIONS') { cors(req, res); res.writeHead(204); return res.end(); }
   const url = new URL(req.url, `http://${req.headers.host || `${HOST}:${PORT}`}`);
-  if (req.method === 'GET' && url.pathname === '/api/health') return json(req, res, 200, { ok: true, configured: Boolean(process.env.OPENAI_API_KEY), model: 'gpt-image-2', defaultApiUrl: process.env.OPENAI_API_URL || 'https://api.openai.com/v1' });
+  if (req.method === 'GET' && url.pathname === '/api/health') return json(req, res, 200, { ok: true, serverVersion: '0.9.1-network-diagnostics', configured: Boolean(process.env.OPENAI_API_KEY), model: 'gpt-image-2', defaultApiUrl: process.env.OPENAI_API_URL || 'https://api.openai.com/v1' });
   if (req.method === 'POST' && url.pathname === '/api/check-provider') return checkProvider(req, res);
   if (req.method === 'POST' && url.pathname === '/api/generate') return generate(req, res);
   if (req.method === 'GET' && (url.pathname === '/' || url.pathname === '/index.html')) {
