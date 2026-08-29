@@ -1,6 +1,6 @@
 {
-  "name": "camera-angle-studio",
-  "version": "0.8.0",
+  "name": "镜头视角标注台 2.0.0",
+  "version": "2.0.0",
   "private": true,
   "scripts": {
     "start": "node server.js"
