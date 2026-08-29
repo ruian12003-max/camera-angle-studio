@@ -1,11 +1,51 @@
 {
-  "name": "镜头视角标注台 2.0.0",
+  "name": "camera-angle-studio",
   "version": "2.0.0",
   "private": true,
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "desktop": "electron .",
+    "dist": "electron-builder",
+    "dist:win": "electron-builder --win nsis",
+    "dist:mac": "electron-builder --mac dmg"
   },
+  "main": "desktop-main.js",
   "engines": {
     "node": ">=20"
+  },
+  "devDependencies": {
+    "electron": "^38.0.0",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "com.ruian.cameraanglestudio",
+    "productName": "Camera Angle Studio",
+    "artifactName": "Camera-Angle-Studio-${version}-${os}-${arch}.${ext}",
+    "files": [
+      "index.html",
+      "server.js",
+      "desktop-main.js",
+      "package.json",
+      "preview.png",
+      "README.md"
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "win": {
+      "target": ["nsis"]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true
+    },
+    "mac": {
+      "target": ["dmg"],
+      "category": "public.app-category.graphics-design"
+    },
+    "dmg": {
+      "title": "Camera Angle Studio 2.0.0"
+    }
   }
 }
